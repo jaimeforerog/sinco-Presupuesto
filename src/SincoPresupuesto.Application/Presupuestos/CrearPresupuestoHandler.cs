@@ -20,7 +20,7 @@ public static class CrearPresupuestoHandler
         var presupuestoId = Guid.NewGuid();
         var ahora = clock.GetUtcNow();
 
-        var evento = Presupuesto.Create(cmd, presupuestoId, ahora);
+        var evento = Presupuesto.Crear(cmd, presupuestoId, ahora);
 
         // Stream nuevo por agregado. Marten infiere el tenant del IDocumentSession
         // (conjoint multi-tenant) si se obtuvo con IDocumentStore.LightweightSession(tenantId).

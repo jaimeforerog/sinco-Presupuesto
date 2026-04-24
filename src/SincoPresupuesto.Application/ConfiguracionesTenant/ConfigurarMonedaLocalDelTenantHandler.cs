@@ -27,7 +27,7 @@ public static class ConfigurarMonedaLocalDelTenantHandler
         MonedaLocalDelTenantConfigurada evento;
         if (existente is null)
         {
-            evento = ConfiguracionTenant.Create(cmd, ahora);
+            evento = ConfiguracionTenant.Crear(cmd, ahora);
             session.Events.StartStream<ConfiguracionTenant>(streamId, evento);
         }
         else

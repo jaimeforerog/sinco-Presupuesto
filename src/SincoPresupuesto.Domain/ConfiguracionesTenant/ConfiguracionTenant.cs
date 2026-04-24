@@ -17,6 +17,13 @@ namespace SincoPresupuesto.Domain.ConfiguracionesTenant;
 /// </summary>
 public class ConfiguracionTenant
 {
+    /// <summary>
+    /// Identificador del agregado. Requerido por Marten (SingleStreamProjection interna)
+    /// aunque el dominio no lo usa — <see cref="TenantId"/> es la identidad de negocio.
+    /// Marten lo asigna al rehidratar; en tests unitarios queda como <see cref="Guid.Empty"/>.
+    /// </summary>
+    public Guid Id { get; set; }
+
     public string? TenantId { get; private set; }
     public Moneda? MonedaLocal { get; private set; }
     public DateTimeOffset? ConfiguradaEn { get; private set; }
@@ -28,7 +35,7 @@ public class ConfiguracionTenant
     /// Valida PRE-1: TenantId no vacío.
     /// Valida PRE-2: normaliza ConfiguradoPor vacío a "sistema".
     /// </summary>
-    public static MonedaLocalDelTenantConfigurada Create(
+    public static MonedaLocalDelTenantConfigurada Crear(
         ConfigurarMonedaLocalDelTenant cmd,
         DateTimeOffset ahora)
     {

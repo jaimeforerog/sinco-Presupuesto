@@ -40,7 +40,7 @@ public class Slice02_ConfigurarMonedaLocalDelTenantTests
 
         // When
         var cmd = CmdValido();
-        var evento = ConfiguracionTenant.Create(cmd, AhoraFijo);
+        var evento = ConfiguracionTenant.Crear(cmd, AhoraFijo);
 
         // Then
         evento.Should().BeOfType<MonedaLocalDelTenantConfigurada>();
@@ -63,7 +63,7 @@ public class Slice02_ConfigurarMonedaLocalDelTenantTests
 
         // When
         var cmd = CmdValido(configuradoPor: configuradoPor);
-        var evento = ConfiguracionTenant.Create(cmd, AhoraFijo);
+        var evento = ConfiguracionTenant.Crear(cmd, AhoraFijo);
 
         // Then
         evento.ConfiguradaPor.Should().Be("sistema");
@@ -81,7 +81,7 @@ public class Slice02_ConfigurarMonedaLocalDelTenantTests
         var cmd = CmdValido(tenantId: tenantId);
 
         // When
-        var act = () => ConfiguracionTenant.Create(cmd, AhoraFijo);
+        var act = () => ConfiguracionTenant.Crear(cmd, AhoraFijo);
 
         // Then
         act.Should().Throw<CampoRequeridoException>()
@@ -125,7 +125,7 @@ public class Slice02_ConfigurarMonedaLocalDelTenantTests
     {
         // Given: el evento producido por Create.
         var cmd = CmdValido();
-        var evento = ConfiguracionTenant.Create(cmd, AhoraFijo);
+        var evento = ConfiguracionTenant.Crear(cmd, AhoraFijo);
 
         // When: reconstruir el agregado aplicando el evento.
         var agg = AggregateBehavior<ConfiguracionTenant>.Reconstruir(evento);

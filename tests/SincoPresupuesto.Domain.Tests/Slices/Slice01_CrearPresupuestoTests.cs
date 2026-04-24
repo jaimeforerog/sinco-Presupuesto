@@ -51,7 +51,7 @@ public class Slice01_CrearPresupuestoTests
         // Given: stream vacío — nada que aplicar.
 
         // When
-        var evento = Presupuesto.Create(CmdValido(), PresupuestoIdFijo, AhoraFijo);
+        var evento = Presupuesto.Crear(CmdValido(), PresupuestoIdFijo, AhoraFijo);
 
         // Then
         evento.PresupuestoId.Should().Be(PresupuestoIdFijo);
@@ -77,7 +77,7 @@ public class Slice01_CrearPresupuestoTests
         // Given: stream vacío.
 
         // When
-        var evento = Presupuesto.Create(
+        var evento = Presupuesto.Crear(
             CmdValido(creadoPor: creadoPor),
             PresupuestoIdFijo,
             AhoraFijo);
@@ -98,7 +98,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(tenantId: tenantId);
 
         // When
-        var act = () => Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var act = () => Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         act.Should().Throw<CampoRequeridoException>()
@@ -117,7 +117,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(codigo: codigo);
 
         // When
-        var act = () => Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var act = () => Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         act.Should().Throw<CampoRequeridoException>()
@@ -136,7 +136,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(nombre: nombre);
 
         // When
-        var act = () => Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var act = () => Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         act.Should().Throw<CampoRequeridoException>()
@@ -155,7 +155,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(periodoInicio: inicio, periodoFin: fin);
 
         // When
-        var act = () => Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var act = () => Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         act.Should().Throw<PeriodoInvalidoException>()
@@ -178,7 +178,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(profundidadMaxima: profundidad);
 
         // When
-        var act = () => Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var act = () => Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         act.Should().Throw<ProfundidadMaximaFueraDeRangoException>()
@@ -198,7 +198,7 @@ public class Slice01_CrearPresupuestoTests
         var cmd = CmdValido(codigo: "  OBRA-2026-01  ", nombre: "  Torre Norte  ");
 
         // When
-        var evento = Presupuesto.Create(cmd, PresupuestoIdFijo, AhoraFijo);
+        var evento = Presupuesto.Crear(cmd, PresupuestoIdFijo, AhoraFijo);
 
         // Then
         evento.Codigo.Should().Be("OBRA-2026-01");
@@ -212,7 +212,7 @@ public class Slice01_CrearPresupuestoTests
     public void Fold_de_PresupuestoCreado_deja_el_agregado_en_Borrador_con_MonedaBase_fijada()
     {
         // Given: el evento producido por Create.
-        var evento = Presupuesto.Create(CmdValido(), PresupuestoIdFijo, AhoraFijo);
+        var evento = Presupuesto.Crear(CmdValido(), PresupuestoIdFijo, AhoraFijo);
 
         // When: reconstruir el agregado aplicando el evento.
         var agg = AggregateBehavior<Presupuesto>.Reconstruir(evento);

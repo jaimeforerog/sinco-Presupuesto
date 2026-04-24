@@ -47,7 +47,7 @@ public sealed class Presupuesto
     /// Lanza subclases de <see cref="DominioException"/> ante violaciones; los tests deben
     /// asertar sobre el tipo y propiedades, no sobre el mensaje.
     /// </summary>
-    public static PresupuestoCreado Create(CrearPresupuesto cmd, Guid presupuestoId, DateTimeOffset ahora)
+    public static PresupuestoCreado Crear(CrearPresupuesto cmd, Guid presupuestoId, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(cmd);
 

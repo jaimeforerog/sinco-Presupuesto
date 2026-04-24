@@ -29,10 +29,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
+
+        // Inyectar vía env var porque Program.cs lee
+        //   builder.Configuration.GetConnectionString("Postgres")
+        // durante CreateBuilder — ANTES de que ConfigureWebHost del
+        // WebApplicationFactory pueda override appsettings.Development.json.
+        // El env var ya está presente en los config sources por default
+        // (con precedencia sobre appsettings.*.json), así que es la ruta fiable.
+        Environment.SetEnvironmentVariable(
+            "ConnectionStrings__Postgres",
+            _postgres.GetConnectionString());
     }
 
     public new async Task DisposeAsync()
     {
+        Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", null);
         await _postgres.DisposeAsync();
         await base.DisposeAsync();
     }
@@ -40,13 +51,5 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(Environments.Development);
-
-        builder.ConfigureAppConfiguration((_, config) =>
-        {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:Postgres"] = _postgres.GetConnectionString(),
-            });
-        });
     }
 }
