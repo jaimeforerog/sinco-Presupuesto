@@ -138,12 +138,27 @@ docker run --rm -p 8080:8080 \
 - **`MonedaBase` inmutable** tras crear el presupuesto (reformula INV-7).
 - **Profundidad del árbol** configurable por presupuesto (default 10, tope rígido 15).
 
-## Próximos pasos sugeridos
+## Roadmap — estado actual
 
-1. Implementar agregado `ConfiguracionTenant` (prerequisito de `CrearPresupuesto` — la `MonedaLocal` del tenant).
-2. Agregados `Rubro`/árbol y eventos `RubroAgregado`, `MontoAsignadoARubro`, `RubroConvertidoAAgrupador`, `RubroMovido`.
-3. `TasaDeCambio` como agregado/proyección separada.
-4. Ciclo de vida completo: `AprobarPresupuesto` con `SnapshotTasas`, `ActivarPresupuesto`, `CerrarPresupuesto`.
-5. Proyección `PresupuestoCodigoIndex` con `UniqueIndex` compuesto `(TenantId, Codigo, PeriodoFiscal)`.
-6. Tests de integración con Testcontainers (Postgres real).
-7. Pipeline CI/CD (GitHub Actions / Azure DevOps): build, test, docker push, bicep deploy.
+**Slices implementados (dominio completo + infra-wire + tests end-to-end):**
+
+| # | Slice | Dominio | Endpoints HTTP | Integration |
+|---|---|---|---|---|
+| 00 | shared-kernel (`Dinero`, `Moneda`, excepciones) | ✅ | — | ✅ |
+| 01 | `CrearPresupuesto` | ✅ | `POST/GET /api/tenants/{t}/presupuestos` | ✅ |
+| 02 | `ConfigurarMonedaLocalDelTenant` | ✅ | `POST/GET /api/tenants/{t}/configuracion` | ✅ |
+| 03 | `AgregarRubro` | ✅ | `POST /…/rubros` | ✅ |
+| 04 | `AsignarMontoARubro` | ✅ | `POST /…/rubros/{r}/monto` | ✅ |
+| `_obs-visor-eventos` | Visor de Eventos (transversal) | — | `GET /diag/*` + UI | ✅ |
+
+**Tests:** 145/145 verdes (125 dominio + 20 integración HTTP→PG bajo Testcontainers).
+
+**Pendientes en la ruta crítica al MVP:**
+
+1. **Slice 05 `AprobarPresupuesto`** — cierra followup #13 (INV-3 en estado ≠ Borrador). Versión mínima acepta solo partidas en `MonedaBase`; multimoneda completo sigue con `TasaDeCambio`.
+2. **Slice 06 `TasaDeCambioRegistrada`** — desbloquea `SnapshotTasas` del baseline.
+3. **Slice 07 `ActivarPresupuesto`** + **Slice 08 `CerrarPresupuesto`** — completan el ciclo de vida.
+4. **Slice `QuitarRubro`** — event-storming §4 (rubros con monto=0).
+5. **Followups técnicos**: CI con coverlet (#1), `PresupuestoCodigoIndex` (#2), `TenantNoConfiguradoException` (#8), `GeneradorCodigosJerarquicos` (#11), `RubroConvertidoAAgrupador`/`RubroMovido` para árbol dinámico.
+
+Ver `FOLLOWUPS.md` para el backlog completo (14 items abiertos) y `slices/*/review-notes.md` para auditorías por slice.

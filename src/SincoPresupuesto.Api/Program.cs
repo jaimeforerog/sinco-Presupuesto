@@ -69,6 +69,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapPresupuestoEndpoints();
 app.MapConfiguracionTenantEndpoints();
+app.MapDiagEndpoints();
 
 await app.RunAsync();
 
