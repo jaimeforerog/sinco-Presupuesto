@@ -32,10 +32,7 @@ public class ConfiguracionTenant
         ConfigurarMonedaLocalDelTenant cmd,
         DateTimeOffset ahora)
     {
-        if (string.IsNullOrWhiteSpace(cmd.TenantId))
-        {
-            throw new CampoRequeridoException("TenantId");
-        }
+        Requerir.Campo(cmd.TenantId, "TenantId");
 
         var tenantIdNormalizado = cmd.TenantId.Trim();
         var configuradoPorNormalizado = string.IsNullOrWhiteSpace(cmd.ConfiguradoPor)
