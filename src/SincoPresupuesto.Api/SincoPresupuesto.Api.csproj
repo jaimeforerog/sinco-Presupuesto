@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>SincoPresupuesto.Api</RootNamespace>
+    <AssemblyName>SincoPresupuesto.Api</AssemblyName>
+    <UserSecretsId>sinco-presupuesto-api</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SincoPresupuesto.Domain\SincoPresupuesto.Domain.csproj" />
+    <ProjectReference Include="..\SincoPresupuesto.Application\SincoPresupuesto.Application.csproj" />
+    <ProjectReference Include="..\SincoPresupuesto.Infrastructure\SincoPresupuesto.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.Marten" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+  </ItemGroup>
+</Project>

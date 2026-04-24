@@ -1,0 +1,30 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.lock.json
+TestResults/
+coverage/
+*.trx
+
+## Rider / JetBrains
+.idea/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Secrets / local config
+appsettings.Local.json
+*.env
+.env.*
+!*.env.example
+
+## Azure
+.azure/
+
+## Claude Code
+.claude/settings.local.json
