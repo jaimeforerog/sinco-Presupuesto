@@ -152,6 +152,71 @@ public sealed class Presupuesto
     }
 
     /// <summary>
+    /// Asigna (o reasigna) un monto a un rubro existente del árbol. Spec slice 04 §2/§6.
+    /// Valida PRE-1 (RubroId no vacío), PRE-2 (rubro existe), PRE-3/INV-2 (Monto ≥ 0),
+    /// PRE-4 (normalización AsignadoPor), INV-3 declarada (Borrador — diferida a followup #13),
+    /// e INV-NEW-SLICE04-1 (rechazo si el rubro es Agrupador). Devuelve el evento
+    /// <see cref="MontoAsignadoARubro"/>; no muta estado.
+    /// </summary>
+    public MontoAsignadoARubro AsignarMontoARubro(
+        Commands.AsignarMontoARubro cmd,
+        DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(cmd);
+
+        // PRE-1 — RubroId no puede ser Guid.Empty.
+        if (cmd.RubroId == Guid.Empty)
+        {
+            throw new CampoRequeridoException("RubroId");
+        }
+
+        // INV-3 — declarada en spec §5. La rama de violación (estado ≠ Borrador) queda
+        // cubierta por followup #13 (slice AprobarPresupuesto). El test de sanidad §6.8
+        // ejerce el camino "estado Borrador → no lanza".
+        if (Estado != EstadoPresupuesto.Borrador)
+        {
+            throw new PresupuestoNoEsBorradorException(Estado);
+        }
+
+        // PRE-2 — el rubro destino existe.
+        var rubroDestino = _rubros.FirstOrDefault(r => r.Id == cmd.RubroId)
+            ?? throw new RubroNoExisteException(cmd.RubroId);
+
+        // INV-NEW-SLICE04-1 — el rubro destino no debe tener hijos (no es Agrupador).
+        if (_rubros.Any(r => r.PadreId == cmd.RubroId))
+        {
+            throw new RubroEsAgrupadorException(cmd.RubroId);
+        }
+
+        // PRE-3 / INV-2 — Monto ≥ 0.
+        if (cmd.Monto.Valor < 0m)
+        {
+            throw new MontoNegativoException(cmd.Monto);
+        }
+
+        // PRE-4 — normalización de AsignadoPor (patrón slice 01/02).
+        var asignadoPor = string.IsNullOrWhiteSpace(cmd.AsignadoPor)
+            ? "sistema"
+            : cmd.AsignadoPor;
+
+        // MontoAnterior — spec §3 y §12.2: si el rubro aún no tiene monto asignado
+        // (Monto.EsCero tras la inicialización en Apply(RubroAgregado)), se alinea a
+        // la moneda del comando para el "delta" auto-documentado; si ya hubo asignación
+        // real, se usa el monto previo tal cual (posiblemente en otra moneda).
+        var montoAnterior = rubroDestino.Monto.EsCero
+            ? Dinero.Cero(cmd.Monto.Moneda)
+            : rubroDestino.Monto;
+
+        return new MontoAsignadoARubro(
+            PresupuestoId: Id,
+            RubroId: cmd.RubroId,
+            Monto: cmd.Monto,
+            MontoAnterior: montoAnterior,
+            AsignadoEn: ahora,
+            AsignadoPor: asignadoPor);
+    }
+
+    /// <summary>
     /// Valida el formato del código del rubro según tenga o no padre.
     /// Con padre: INV-F (el hijo extiende al padre con exactamente un segmento <c>.DD</c>).
     /// Sin padre: INV-10 (formato canónico <c>^\d{2}(\.\d{2}){0,14}$</c>).
@@ -208,6 +273,23 @@ public sealed class Presupuesto
             Nombre = e.Nombre,
             PadreId = e.RubroPadreId,
             Nivel = nivel,
+            // Inicializa Monto a Dinero.Cero(MonedaBase) — spec §12.2. Evita que el
+            // Monto quede en default(Dinero) (Moneda con Codigo=null, que violaría
+            // INV-SK-3 del VO Moneda). El fold de AsignarMontoARubro lo reemplaza
+            // entero cuando llega la primera asignación.
+            Monto = Dinero.Cero(MonedaBase),
         });
+    }
+
+    /// <summary>
+    /// Fold del evento <see cref="MontoAsignadoARubro"/>. Spec §12.5: localiza el rubro
+    /// con <c>e.RubroId</c> y reemplaza su <see cref="Rubro.Monto"/> por <c>e.Monto</c>.
+    /// Se usa <c>.First(...)</c> — si el rubro no existiera sería un bug del stream
+    /// (el comando garantiza que el rubro existe antes de emitir).
+    /// </summary>
+    public void Apply(MontoAsignadoARubro e)
+    {
+        var rubro = _rubros.First(r => r.Id == e.RubroId);
+        rubro.AsignarMonto(e.Monto);
     }
 }
