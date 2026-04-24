@@ -3,6 +3,7 @@ using Marten;
 using Marten.Events.Projections;
 using SincoPresupuesto.Api.Endpoints;
 using SincoPresupuesto.Api.ExceptionHandlers;
+using SincoPresupuesto.Application.ConfiguracionesTenant;
 using SincoPresupuesto.Application.Presupuestos;
 using Weasel.Core;
 using Wolverine;
@@ -31,6 +32,7 @@ builder.Services
             : AutoCreate.None;
 
         opts.Projections.Add<PresupuestoProjection>(ProjectionLifecycle.Inline);
+        opts.Projections.Add<ConfiguracionTenantProjection>(ProjectionLifecycle.Inline);
 
         // Serialización: system.text.json con polimorfismo de records.
         opts.UseSystemTextJsonForSerialization();
@@ -66,6 +68,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapPresupuestoEndpoints();
+app.MapConfiguracionTenantEndpoints();
 
 await app.RunAsync();
 
