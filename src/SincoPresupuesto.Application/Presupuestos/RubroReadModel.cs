@@ -7,4 +7,6 @@ public sealed class RubroReadModel
     public string Nombre { get; set; } = string.Empty;
     public Guid? PadreId { get; set; }
     public int Nivel { get; set; }
+    public decimal MontoValor { get; set; }
+    public string MontoMoneda { get; set; } = string.Empty;
 }

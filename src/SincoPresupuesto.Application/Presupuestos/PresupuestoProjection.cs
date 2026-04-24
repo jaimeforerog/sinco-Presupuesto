@@ -38,6 +38,15 @@ public sealed class PresupuestoProjection : SingleStreamProjection<PresupuestoRe
             Nombre = e.Nombre,
             PadreId = e.RubroPadreId,
             Nivel = nivel,
+            MontoValor = 0m,
+            MontoMoneda = model.MonedaBase,
         });
+    }
+
+    public void Apply(MontoAsignadoARubro e, PresupuestoReadModel model)
+    {
+        var rubro = model.Rubros.First(r => r.RubroId == e.RubroId);
+        rubro.MontoValor = e.Monto.Valor;
+        rubro.MontoMoneda = e.Monto.Moneda.Codigo;
     }
 }

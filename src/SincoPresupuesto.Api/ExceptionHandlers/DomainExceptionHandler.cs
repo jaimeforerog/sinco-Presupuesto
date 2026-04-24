@@ -50,6 +50,8 @@ public sealed class DomainExceptionHandler : IExceptionHandler
         PresupuestoNoEsBorradorException => (StatusCodes.Status409Conflict, "Estado del presupuesto no permite la operación"),
         CodigoRubroDuplicadoException => (StatusCodes.Status409Conflict, "Código de rubro duplicado"),
         RubroPadreNoExisteException => (StatusCodes.Status409Conflict, "Rubro padre no existe"),
+        RubroNoExisteException => (StatusCodes.Status409Conflict, "Rubro destino no existe"),
+        RubroEsAgrupadorException => (StatusCodes.Status409Conflict, "Rubro destino es agrupador"),
         TenantYaConfiguradoException => (StatusCodes.Status409Conflict, "Tenant ya configurado"),
 
         // 400 — datos mal formados o inválidos
@@ -62,6 +64,7 @@ public sealed class DomainExceptionHandler : IExceptionHandler
         ProfundidadExcedidaException => (StatusCodes.Status400BadRequest, "Profundidad excedida"),
         MonedasDistintasException => (StatusCodes.Status400BadRequest, "Operación entre monedas distintas"),
         FactorDeConversionInvalidoException => (StatusCodes.Status400BadRequest, "Factor de conversión inválido"),
+        MontoNegativoException => (StatusCodes.Status400BadRequest, "Monto negativo"),
 
         _ => (StatusCodes.Status400BadRequest, "Violación de invariante de dominio"),
     };

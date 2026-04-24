@@ -3,6 +3,7 @@ using SincoPresupuesto.Application.Presupuestos;
 using SincoPresupuesto.Domain.Presupuestos.Commands;
 using SincoPresupuesto.Domain.SharedKernel;
 using DomainAgregarRubro = SincoPresupuesto.Domain.Presupuestos.Commands.AgregarRubro;
+using DomainAsignarMonto = SincoPresupuesto.Domain.Presupuestos.Commands.AsignarMontoARubro;
 
 namespace SincoPresupuesto.Api.Endpoints;
 
@@ -21,6 +22,9 @@ public static class PresupuestoEndpoints
 
         group.MapPost("/{presupuestoId:guid}/rubros", AgregarRubroAsync)
              .WithName("AgregarRubro");
+
+        group.MapPost("/{presupuestoId:guid}/rubros/{rubroId:guid}/monto", AsignarMontoARubroAsync)
+             .WithName("AsignarMontoARubro");
 
         return app;
     }
@@ -105,6 +109,42 @@ public static class PresupuestoEndpoints
                 evento.Nombre,
                 evento.RubroPadreId,
                 evento.AgregadoEn,
+            });
+    }
+
+    public sealed record AsignarMontoARubroRequest(
+        decimal Valor,
+        string Moneda,
+        string? AsignadoPor = null);
+
+    private static async Task<IResult> AsignarMontoARubroAsync(
+        string tenantId,
+        Guid presupuestoId,
+        Guid rubroId,
+        AsignarMontoARubroRequest body,
+        IDocumentStore store,
+        TimeProvider clock,
+        CancellationToken ct)
+    {
+        await using var session = store.LightweightSession(tenantId);
+
+        var cmd = new DomainAsignarMonto(
+            RubroId: rubroId,
+            Monto: new Dinero(body.Valor, new Moneda(body.Moneda)),
+            AsignadoPor: body.AsignadoPor ?? "sistema");
+
+        var evento = await AsignarMontoARubroHandler.Handle(presupuestoId, cmd, session, clock, ct);
+
+        return Results.CreatedAtRoute(
+            "ObtenerPresupuesto",
+            new { tenantId, id = presupuestoId },
+            new
+            {
+                evento.RubroId,
+                Monto = new { evento.Monto.Valor, Moneda = evento.Monto.Moneda.Codigo },
+                MontoAnterior = new { evento.MontoAnterior.Valor, Moneda = evento.MontoAnterior.Moneda.Codigo },
+                evento.AsignadoEn,
+                evento.AsignadoPor,
             });
     }
 }
