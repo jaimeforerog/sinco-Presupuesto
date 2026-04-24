@@ -43,6 +43,12 @@ public readonly record struct Moneda
 
     public string Codigo { get; }
 
+    /// <summary>
+    /// Cardinalidad de la lista ISO 4217 embebida. Expuesta para tests que validen
+    /// que la lista no se redujo accidentalmente a un set trivial (spec slice 00 §6.17).
+    /// </summary>
+    public static int CantidadCodigosIso4217Soportados => CodigosIso4217Validos.Count;
+
     public Moneda(string codigo)
     {
         if (string.IsNullOrWhiteSpace(codigo))

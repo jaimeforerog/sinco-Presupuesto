@@ -60,6 +60,8 @@ public sealed class DomainExceptionHandler : IExceptionHandler
         CodigoRubroInvalidoException => (StatusCodes.Status400BadRequest, "Código de rubro inválido"),
         CodigoHijoNoExtiendeAlPadreException => (StatusCodes.Status400BadRequest, "Código de hijo no extiende al padre"),
         ProfundidadExcedidaException => (StatusCodes.Status400BadRequest, "Profundidad excedida"),
+        MonedasDistintasException => (StatusCodes.Status400BadRequest, "Operación entre monedas distintas"),
+        FactorDeConversionInvalidoException => (StatusCodes.Status400BadRequest, "Factor de conversión inválido"),
 
         _ => (StatusCodes.Status400BadRequest, "Violación de invariante de dominio"),
     };

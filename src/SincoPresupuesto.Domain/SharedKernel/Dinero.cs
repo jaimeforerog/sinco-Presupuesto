@@ -26,7 +26,7 @@ public readonly record struct Dinero(decimal Valor, Moneda Moneda)
 
         if (factor <= 0m)
         {
-            throw new ArgumentException("El factor de conversión debe ser mayor que cero.", nameof(factor));
+            throw new FactorDeConversionInvalidoException(factor);
         }
 
         return new Dinero(Valor * factor, destino);
@@ -71,13 +71,4 @@ public readonly record struct Dinero(decimal Valor, Moneda Moneda)
             throw new MonedasDistintasException(a.Moneda, b.Moneda);
         }
     }
-}
-
-public sealed class MonedasDistintasException(Moneda izquierda, Moneda derecha)
-    : InvalidOperationException(
-        $"Operación aritmética no permitida entre monedas distintas: {izquierda} vs {derecha}. " +
-        $"Convierte explícitamente con Dinero.En(destino, factor).")
-{
-    public Moneda Izquierda { get; } = izquierda;
-    public Moneda Derecha { get; } = derecha;
 }
