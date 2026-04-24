@@ -24,4 +24,20 @@ public sealed class PresupuestoProjection : SingleStreamProjection<PresupuestoRe
         CreadoEn = e.CreadoEn,
         CreadoPor = e.CreadoPor,
     };
+
+    public void Apply(RubroAgregado e, PresupuestoReadModel model)
+    {
+        var nivel = e.RubroPadreId is Guid padreId
+            ? model.Rubros.First(r => r.RubroId == padreId).Nivel + 1
+            : 1;
+
+        model.Rubros.Add(new RubroReadModel
+        {
+            RubroId = e.RubroId,
+            Codigo = e.Codigo,
+            Nombre = e.Nombre,
+            PadreId = e.RubroPadreId,
+            Nivel = nivel,
+        });
+    }
 }

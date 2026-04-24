@@ -2,6 +2,7 @@ using JasperFx.CodeGeneration;
 using Marten;
 using Marten.Events.Projections;
 using SincoPresupuesto.Api.Endpoints;
+using SincoPresupuesto.Api.ExceptionHandlers;
 using SincoPresupuesto.Application.Presupuestos;
 using Weasel.Core;
 using Wolverine;
@@ -47,6 +48,7 @@ builder.Host.UseWolverine(opts =>
 
 // ─────────────── ASP.NET Core ───────────────
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks()

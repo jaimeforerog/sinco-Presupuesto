@@ -20,4 +20,5 @@ public sealed class PresupuestoReadModel
     public EstadoPresupuesto Estado { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
     public string CreadoPor { get; set; } = string.Empty;
+    public List<RubroReadModel> Rubros { get; set; } = new();
 }

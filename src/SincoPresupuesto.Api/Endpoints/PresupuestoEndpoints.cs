@@ -2,6 +2,7 @@ using Marten;
 using SincoPresupuesto.Application.Presupuestos;
 using SincoPresupuesto.Domain.Presupuestos.Commands;
 using SincoPresupuesto.Domain.SharedKernel;
+using DomainAgregarRubro = SincoPresupuesto.Domain.Presupuestos.Commands.AgregarRubro;
 
 namespace SincoPresupuesto.Api.Endpoints;
 
@@ -17,6 +18,9 @@ public static class PresupuestoEndpoints
 
         group.MapGet("/{id:guid}", ObtenerPresupuestoAsync)
              .WithName("ObtenerPresupuesto");
+
+        group.MapPost("/{presupuestoId:guid}/rubros", AgregarRubroAsync)
+             .WithName("AgregarRubro");
 
         return app;
     }
@@ -67,5 +71,40 @@ public static class PresupuestoEndpoints
         await using var session = store.QuerySession(tenantId);
         var readModel = await session.LoadAsync<PresupuestoReadModel>(id, ct);
         return readModel is null ? Results.NotFound() : Results.Ok(readModel);
+    }
+
+    public sealed record AgregarRubroRequest(
+        string Codigo,
+        string Nombre,
+        Guid? RubroPadreId = null);
+
+    private static async Task<IResult> AgregarRubroAsync(
+        string tenantId,
+        Guid presupuestoId,
+        AgregarRubroRequest body,
+        IDocumentStore store,
+        TimeProvider clock,
+        CancellationToken ct)
+    {
+        await using var session = store.LightweightSession(tenantId);
+
+        var cmd = new DomainAgregarRubro(
+            Codigo: body.Codigo,
+            Nombre: body.Nombre,
+            RubroPadreId: body.RubroPadreId);
+
+        var evento = await AgregarRubroHandler.Handle(presupuestoId, cmd, session, clock, ct);
+
+        return Results.CreatedAtRoute(
+            "ObtenerPresupuesto",
+            new { tenantId, id = presupuestoId },
+            new
+            {
+                evento.RubroId,
+                evento.Codigo,
+                evento.Nombre,
+                evento.RubroPadreId,
+                evento.AgregadoEn,
+            });
     }
 }
