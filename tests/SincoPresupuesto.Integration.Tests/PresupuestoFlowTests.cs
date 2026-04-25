@@ -267,6 +267,97 @@ public class PresupuestoFlowTests
     }
 
     // ════════════════════════════════════════════════════════════════
+    // Slice 05 — AprobarPresupuesto
+    // ════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task Slice05_Aprobar_happy_201_y_GET_muestra_estado_Aprobado_y_MontoTotal()
+    {
+        var tenantId = NewTenantId();
+        var presupuestoId = await CrearPresupuestoAsync(tenantId);
+        var rubroId = await AgregarRubroAsync(tenantId, presupuestoId, "01", "Materiales");
+        var asignar = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/rubros/{rubroId}/monto",
+            new { valor = 1_500_000m, moneda = "COP" });
+        asignar.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var aprobar = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/aprobar",
+            new { aprobadoPor = "admin-test" });
+        aprobar.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var get = await _client.GetAsync($"/api/tenants/{tenantId}/presupuestos/{presupuestoId}");
+        var doc = await ReadJson(get);
+        doc.GetProperty("estado").GetInt32().Should().Be(1); // Aprobado
+        doc.GetProperty("montoTotalValor").GetDecimal().Should().Be(1_500_000m);
+        doc.GetProperty("montoTotalMoneda").GetString().Should().Be("COP");
+        doc.GetProperty("aprobadoPor").GetString().Should().Be("admin-test");
+        doc.TryGetProperty("aprobadoEn", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Slice05_Aprobar_sin_montos_devuelve_400()
+    {
+        var tenantId = NewTenantId();
+        var presupuestoId = await CrearPresupuestoAsync(tenantId);
+        await AgregarRubroAsync(tenantId, presupuestoId, "01", "Sin monto");
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/aprobar",
+            new { });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Slice05_Aprobar_con_partida_en_otra_moneda_devuelve_400()
+    {
+        var tenantId = NewTenantId();
+        var presupuestoId = await CrearPresupuestoAsync(tenantId);
+        var rubroId = await AgregarRubroAsync(tenantId, presupuestoId, "01", "Importado");
+        var asignar = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/rubros/{rubroId}/monto",
+            new { valor = 5_000m, moneda = "USD" });
+        asignar.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/aprobar",
+            new { });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Slice05_Aprobar_dos_veces_devuelve_409_y_AgregarRubro_post_aprobado_devuelve_409()
+    {
+        var tenantId = NewTenantId();
+        var presupuestoId = await CrearPresupuestoAsync(tenantId);
+        var rubroId = await AgregarRubroAsync(tenantId, presupuestoId, "01", "Único");
+        await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/rubros/{rubroId}/monto",
+            new { valor = 100m, moneda = "COP" });
+
+        var primera = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/aprobar", new { });
+        primera.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Segunda aprobación → 409 (cierra retroactivamente followup #13).
+        var segunda = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/aprobar", new { });
+        segunda.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // AgregarRubro post-aprobación → 409 (también cierra #13).
+        var agregarPost = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/rubros",
+            new { codigo = "02", nombre = "Tarde" });
+        agregarPost.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // AsignarMonto post-aprobación → 409.
+        var asignarPost = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/presupuestos/{presupuestoId}/rubros/{rubroId}/monto",
+            new { valor = 200m, moneda = "COP" });
+        asignarPost.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    // ════════════════════════════════════════════════════════════════
     // Helpers
     // ════════════════════════════════════════════════════════════════
 

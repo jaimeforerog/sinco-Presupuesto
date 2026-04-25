@@ -49,4 +49,16 @@ public sealed class PresupuestoProjection : SingleStreamProjection<PresupuestoRe
         rubro.MontoValor = e.Monto.Valor;
         rubro.MontoMoneda = e.Monto.Moneda.Codigo;
     }
+
+    public void Apply(PresupuestoAprobado e, PresupuestoReadModel model)
+    {
+        model.Estado = EstadoPresupuesto.Aprobado;
+        model.MontoTotalValor = e.MontoTotal.Valor;
+        model.MontoTotalMoneda = e.MontoTotal.Moneda.Codigo;
+        model.SnapshotTasas = e.SnapshotTasas.ToDictionary(
+            kvp => kvp.Key.Codigo,
+            kvp => kvp.Value);
+        model.AprobadoEn = e.AprobadoEn;
+        model.AprobadoPor = e.AprobadoPor;
+    }
 }

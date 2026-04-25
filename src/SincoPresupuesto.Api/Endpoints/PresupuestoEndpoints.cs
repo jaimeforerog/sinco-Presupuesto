@@ -4,6 +4,7 @@ using SincoPresupuesto.Domain.Presupuestos.Commands;
 using SincoPresupuesto.Domain.SharedKernel;
 using DomainAgregarRubro = SincoPresupuesto.Domain.Presupuestos.Commands.AgregarRubro;
 using DomainAsignarMonto = SincoPresupuesto.Domain.Presupuestos.Commands.AsignarMontoARubro;
+using DomainAprobar = SincoPresupuesto.Domain.Presupuestos.Commands.AprobarPresupuesto;
 
 namespace SincoPresupuesto.Api.Endpoints;
 
@@ -25,6 +26,9 @@ public static class PresupuestoEndpoints
 
         group.MapPost("/{presupuestoId:guid}/rubros/{rubroId:guid}/monto", AsignarMontoARubroAsync)
              .WithName("AsignarMontoARubro");
+
+        group.MapPost("/{presupuestoId:guid}/aprobar", AprobarPresupuestoAsync)
+             .WithName("AprobarPresupuesto");
 
         return app;
     }
@@ -145,6 +149,36 @@ public static class PresupuestoEndpoints
                 MontoAnterior = new { evento.MontoAnterior.Valor, Moneda = evento.MontoAnterior.Moneda.Codigo },
                 evento.AsignadoEn,
                 evento.AsignadoPor,
+            });
+    }
+
+    public sealed record AprobarPresupuestoRequest(string? AprobadoPor = null);
+
+    private static async Task<IResult> AprobarPresupuestoAsync(
+        string tenantId,
+        Guid presupuestoId,
+        AprobarPresupuestoRequest body,
+        IDocumentStore store,
+        TimeProvider clock,
+        CancellationToken ct)
+    {
+        await using var session = store.LightweightSession(tenantId);
+
+        var cmd = new DomainAprobar(
+            AprobadoPor: body.AprobadoPor ?? "sistema");
+
+        var evento = await AprobarPresupuestoHandler.Handle(presupuestoId, cmd, session, clock, ct);
+
+        return Results.CreatedAtRoute(
+            "ObtenerPresupuesto",
+            new { tenantId, id = presupuestoId },
+            new
+            {
+                evento.PresupuestoId,
+                MontoTotal = new { evento.MontoTotal.Valor, Moneda = evento.MontoTotal.Moneda.Codigo },
+                SnapshotTasas = evento.SnapshotTasas.ToDictionary(kvp => kvp.Key.Codigo, kvp => kvp.Value),
+                evento.AprobadoEn,
+                evento.AprobadoPor,
             });
     }
 }

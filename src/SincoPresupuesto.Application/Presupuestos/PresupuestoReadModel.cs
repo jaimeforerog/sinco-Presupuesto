@@ -21,4 +21,11 @@ public sealed class PresupuestoReadModel
     public DateTimeOffset CreadoEn { get; set; }
     public string CreadoPor { get; set; } = string.Empty;
     public List<RubroReadModel> Rubros { get; set; } = new();
+
+    // Aprobación (slice 05). Quedan en defaults antes de aprobar.
+    public decimal MontoTotalValor { get; set; }
+    public string MontoTotalMoneda { get; set; } = string.Empty;
+    public Dictionary<string, decimal> SnapshotTasas { get; set; } = new();
+    public DateTimeOffset? AprobadoEn { get; set; }
+    public string? AprobadoPor { get; set; }
 }
