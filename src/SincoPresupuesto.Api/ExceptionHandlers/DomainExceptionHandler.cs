@@ -67,6 +67,9 @@ public sealed class DomainExceptionHandler : IExceptionHandler
         MontoNegativoException => (StatusCodes.Status400BadRequest, "Monto negativo"),
         PresupuestoSinMontosException => (StatusCodes.Status400BadRequest, "Presupuesto sin rubros con monto positivo"),
         AprobacionConMultimonedaNoSoportadaException => (StatusCodes.Status400BadRequest, "Aprobación multimoneda no soportada (pendiente catálogo de tasas)"),
+        MonedasIgualesEnTasaException => (StatusCodes.Status400BadRequest, "Monedas iguales en tasa de cambio"),
+        TasaDeCambioInvalidaException => (StatusCodes.Status400BadRequest, "Tasa de cambio inválida"),
+        FechaDeTasaEnElFuturoException => (StatusCodes.Status400BadRequest, "Fecha de tasa en el futuro"),
 
         _ => (StatusCodes.Status400BadRequest, "Violación de invariante de dominio"),
     };

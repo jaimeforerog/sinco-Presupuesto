@@ -358,6 +358,77 @@ public class PresupuestoFlowTests
     }
 
     // ════════════════════════════════════════════════════════════════
+    // Slice 06 — RegistrarTasaDeCambio
+    // ════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task Slice06_RegistrarTasa_happy_201_y_GET_lista_la_tasa_vigente()
+    {
+        var tenantId = NewTenantId();
+        var post = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/tasas-de-cambio/",
+            new { monedaDesde = "USD", monedaHacia = "COP", tasa = 4200m, fecha = "2026-04-24", fuente = "BanRep" });
+        post.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var get = await _client.GetAsync($"/api/tenants/{tenantId}/tasas-de-cambio/");
+        get.StatusCode.Should().Be(HttpStatusCode.OK);
+        var doc = await ReadJson(get);
+        var tasas = doc.GetProperty("tasas").EnumerateArray().ToList();
+        tasas.Should().ContainSingle();
+        tasas[0].GetProperty("monedaDesde").GetString().Should().Be("USD");
+        tasas[0].GetProperty("monedaHacia").GetString().Should().Be("COP");
+        tasas[0].GetProperty("tasa").GetDecimal().Should().Be(4200m);
+    }
+
+    [Fact]
+    public async Task Slice06_RegistrarTasa_misma_tupla_actualiza_tasa_last_write_wins()
+    {
+        var tenantId = NewTenantId();
+        await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/tasas-de-cambio/",
+            new { monedaDesde = "USD", monedaHacia = "COP", tasa = 4200m, fecha = "2026-04-24" });
+
+        var second = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/tasas-de-cambio/",
+            new { monedaDesde = "USD", monedaHacia = "COP", tasa = 4250m, fecha = "2026-04-24" });
+        second.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var get = await _client.GetAsync($"/api/tenants/{tenantId}/tasas-de-cambio/");
+        var doc = await ReadJson(get);
+        var tasas = doc.GetProperty("tasas").EnumerateArray().ToList();
+        tasas.Should().ContainSingle("la proyección hace last-write-wins por par");
+        tasas[0].GetProperty("tasa").GetDecimal().Should().Be(4250m);
+    }
+
+    [Fact]
+    public async Task Slice06_RegistrarTasa_monedas_iguales_devuelve_400()
+    {
+        var tenantId = NewTenantId();
+        var response = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/tasas-de-cambio/",
+            new { monedaDesde = "USD", monedaHacia = "USD", tasa = 1m, fecha = "2026-04-24" });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Slice06_RegistrarTasa_tasa_negativa_devuelve_400()
+    {
+        var tenantId = NewTenantId();
+        var response = await _client.PostAsJsonAsync(
+            $"/api/tenants/{tenantId}/tasas-de-cambio/",
+            new { monedaDesde = "USD", monedaHacia = "COP", tasa = -100m, fecha = "2026-04-24" });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Slice06_GET_tasas_inexistente_devuelve_404()
+    {
+        var tenantId = NewTenantId();
+        var response = await _client.GetAsync($"/api/tenants/{tenantId}/tasas-de-cambio/");
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ════════════════════════════════════════════════════════════════
     // Helpers
     // ════════════════════════════════════════════════════════════════
 
