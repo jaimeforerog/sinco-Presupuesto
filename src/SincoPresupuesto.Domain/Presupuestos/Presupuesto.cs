@@ -35,6 +35,27 @@ public sealed class Presupuesto
     public DateTimeOffset CreadoEn { get; private set; }
     public string CreadoPor { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Total agregado del presupuesto. <c>default(Dinero)</c> antes de aprobar; tras el fold
+    /// de <see cref="PresupuestoAprobado"/> queda con el baseline congelado en <c>MonedaBase</c>.
+    /// Spec slice 05 §12.5.
+    /// </summary>
+    public Dinero MontoTotal { get; private set; }
+
+    /// <summary>
+    /// Tasas de cambio congeladas al aprobar. Inicializa en diccionario vacío para evitar NRE
+    /// antes del fold; tras <see cref="PresupuestoAprobado"/> contiene el snapshot del evento.
+    /// En el MVP slice 05 siempre queda vacío (PRE-3 garantiza homogeneidad de moneda).
+    /// </summary>
+    public IReadOnlyDictionary<Moneda, decimal> SnapshotTasas { get; private set; }
+        = new Dictionary<Moneda, decimal>();
+
+    /// <summary>Timestamp en el que se aprobó. <c>null</c> antes del fold de <see cref="PresupuestoAprobado"/>.</summary>
+    public DateTimeOffset? AprobadoEn { get; private set; }
+
+    /// <summary>Usuario que aprobó. <c>null</c> antes del fold de <see cref="PresupuestoAprobado"/>.</summary>
+    public string? AprobadoPor { get; private set; }
+
     /// <summary>Vista de solo lectura de los rubros reconstruidos por fold.</summary>
     public IReadOnlyList<Rubro> Rubros => _rubros;
 
@@ -107,14 +128,10 @@ public sealed class Presupuesto
         var codigo = cmd.Codigo.Trim();
         var nombre = cmd.Nombre.Trim();
 
-        // INV-3 — declarada en spec §5. La rama de violación (estado ≠ Borrador) queda
-        // cubierta por el followup #13 (slice AprobarPresupuesto), cuando exista un
-        // comando que transicione el estado. El test de sanidad §6.7 ejerce el camino
-        // "estado Borrador → no lanza".
-        if (Estado != EstadoPresupuesto.Borrador)
-        {
-            throw new PresupuestoNoEsBorradorException(Estado);
-        }
+        // INV-3 — solo se permite estructurar el árbol en Borrador. Tras slice 05,
+        // followup #13 quedó cerrado: el escenario "lanza" lo ejercita
+        // Slice05_AprobarPresupuesto_AgregarRubro_post_aprobacion (§6.8).
+        RequerirBorrador();
 
         // INV-D — el padre referenciado debe existir. Se chequea antes que el formato
         // porque INV-F ("hijo extiende al padre") es más específica y cubre códigos
@@ -170,13 +187,9 @@ public sealed class Presupuesto
             throw new CampoRequeridoException("RubroId");
         }
 
-        // INV-3 — declarada en spec §5. La rama de violación (estado ≠ Borrador) queda
-        // cubierta por followup #13 (slice AprobarPresupuesto). El test de sanidad §6.8
-        // ejerce el camino "estado Borrador → no lanza".
-        if (Estado != EstadoPresupuesto.Borrador)
-        {
-            throw new PresupuestoNoEsBorradorException(Estado);
-        }
+        // INV-3 — solo se asignan montos en Borrador. Followup #13 cerrado en slice 05:
+        // Slice05_AprobarPresupuesto_AsignarMontoARubro_post_aprobacion (§6.9) ejercita "lanza".
+        RequerirBorrador();
 
         // PRE-2 — el rubro destino existe.
         var rubroDestino = _rubros.FirstOrDefault(r => r.Id == cmd.RubroId)
@@ -214,6 +227,85 @@ public sealed class Presupuesto
             MontoAnterior: montoAnterior,
             AsignadoEn: ahora,
             AsignadoPor: asignadoPor);
+    }
+
+    /// <summary>
+    /// Aprueba el presupuesto: congela el baseline (<see cref="MontoTotal"/> y
+    /// <see cref="SnapshotTasas"/>) y emite <see cref="PresupuestoAprobado"/>. Spec slice 05 §2 / §12.4.
+    /// Orden de validación: PRE-1 (estado Borrador), PRE-2 (al menos un terminal con monto > 0),
+    /// PRE-3 (multimoneda no soportada — todos los terminales con monto > 0 deben estar en
+    /// MonedaBase), PRE-4 (normalización AprobadoPor). El cálculo de MontoTotal usa la
+    /// distinción operacional Agrupador/Terminal por presencia de hijos en _rubros (spec §10
+    /// Q resuelta, mismo precedente que slice 04 §6.7).
+    /// </summary>
+    public PresupuestoAprobado AprobarPresupuesto(
+        Commands.AprobarPresupuesto cmd,
+        DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(cmd);
+
+        // PRE-1 — INV-3: solo se aprueba en Borrador. Cierra retroactivamente followup #13.
+        RequerirBorrador();
+
+        // Identificar terminales: rubros sin hijos en _rubros (distinción operacional —
+        // spec §10 Q resuelta, mismo precedente que slice 04 §6.7).
+        var terminalesConMontoPositivo = _rubros
+            .Where(r => !_rubros.Any(otro => otro.PadreId == r.Id) && r.Monto.EsPositivo)
+            .ToList();
+
+        // PRE-2 — al menos un terminal con monto > 0.
+        if (terminalesConMontoPositivo.Count == 0)
+        {
+            throw new PresupuestoSinMontosException(Id);
+        }
+
+        // PRE-3 — todos los terminales con monto > 0 deben estar en MonedaBase. La lista
+        // contiene TODOS los conflictivos en orden de aparición en _rubros, no solo el
+        // primero (spec §6.6, §12.1).
+        var rubrosConMonedaDistinta = terminalesConMontoPositivo
+            .Where(r => r.Monto.Moneda != MonedaBase)
+            .Select(r => r.Id)
+            .ToList();
+
+        if (rubrosConMonedaDistinta.Count > 0)
+        {
+            throw new AprobacionConMultimonedaNoSoportadaException(
+                Id,
+                rubrosConMonedaDistinta,
+                MonedaBase);
+        }
+
+        // Cálculo de MontoTotal — suma directa con operador + de Dinero. PRE-3 garantiza
+        // homogeneidad de moneda; el operador exige misma moneda y la PRE-2 garantiza
+        // que la secuencia no es vacía.
+        var montoTotal = terminalesConMontoPositivo
+            .Aggregate(Dinero.Cero(MonedaBase), (acc, r) => acc + r.Monto);
+
+        // PRE-4 — normalización AprobadoPor (patrón slice 01/02/04).
+        var aprobadoPor = string.IsNullOrWhiteSpace(cmd.AprobadoPor)
+            ? "sistema"
+            : cmd.AprobadoPor;
+
+        return new PresupuestoAprobado(
+            PresupuestoId: Id,
+            MontoTotal: montoTotal,
+            SnapshotTasas: new Dictionary<Moneda, decimal>(),
+            AprobadoEn: ahora,
+            AprobadoPor: aprobadoPor);
+    }
+
+    /// <summary>
+    /// Guard reutilizable para invariante INV-3: las mutaciones estructurales
+    /// (`AgregarRubro`, `AsignarMontoARubro`, `AprobarPresupuesto`) solo proceden si
+    /// el presupuesto está en <see cref="EstadoPresupuesto.Borrador"/>. Centraliza
+    /// el patrón aplicado en 3 puntos del agregado tras slice 05 (followup #13 cerrado).
+    /// </summary>
+    private void RequerirBorrador()
+    {
+        if (Estado != EstadoPresupuesto.Borrador)
+        {
+            throw new PresupuestoNoEsBorradorException(Estado);
+        }
     }
 
     /// <summary>
@@ -291,5 +383,21 @@ public sealed class Presupuesto
     {
         var rubro = _rubros.First(r => r.Id == e.RubroId);
         rubro.AsignarMonto(e.Monto);
+    }
+
+    /// <summary>
+    /// Fold del evento <see cref="PresupuestoAprobado"/>. Spec slice 05 §12.6: transiciona el
+    /// estado a <see cref="EstadoPresupuesto.Aprobado"/> y materializa
+    /// <see cref="MontoTotal"/>, <see cref="SnapshotTasas"/>, <see cref="AprobadoEn"/> y
+    /// <see cref="AprobadoPor"/>.
+    /// </summary>
+    public void Apply(PresupuestoAprobado e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        Estado = EstadoPresupuesto.Aprobado;
+        MontoTotal = e.MontoTotal;
+        SnapshotTasas = e.SnapshotTasas;
+        AprobadoEn = e.AprobadoEn;
+        AprobadoPor = e.AprobadoPor;
     }
 }
