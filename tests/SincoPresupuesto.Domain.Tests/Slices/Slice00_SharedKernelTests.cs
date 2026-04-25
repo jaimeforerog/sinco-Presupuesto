@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using FluentAssertions;
 using SincoPresupuesto.Domain.Presupuestos;
 using SincoPresupuesto.Domain.SharedKernel;
@@ -533,5 +534,59 @@ public class Slice00_SharedKernelTests
         // Q1 (aceptada): tras green, hereda de DominioException (hoy hereda de InvalidOperationException).
         ex.Should().BeAssignableTo<DominioException>(
             "Q1 aceptada: MonedasDistintasException debe migrar su base a DominioException (spec §10 Q1 + §12).");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §6.23 Serialización JSON (System.Text.Json) — round-trip de VOs.
+    // Bug descubierto por el visor de eventos (slice _obs-visor-eventos):
+    // Moneda no se deserializaba por STJ (Codigo quedaba null) porque
+    // el struct tiene constructor parametrizado + propiedad get-only.
+    // Fix: [JsonConstructor] en Moneda(string codigo). Followup #23.
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Moneda_round_trip_STJ_preserva_Codigo()
+    {
+        // Given
+        var original = Moneda.COP;
+
+        // When
+        var json = JsonSerializer.Serialize(original);
+        var deserialized = JsonSerializer.Deserialize<Moneda>(json);
+
+        // Then
+        deserialized.Codigo.Should().Be("COP");
+        deserialized.Should().Be(original);
+    }
+
+    [Fact]
+    public void Moneda_se_deserializa_desde_JSON_con_PascalCase_via_PropertyNameCaseInsensitive()
+    {
+        // Given: JSON con PascalCase, como lo persiste Marten. Marten configura STJ
+        // con PropertyNameCaseInsensitive = true por default — replicamos esa opción
+        // para que el test refleje las condiciones reales de rehidratación.
+        const string jsonPascalCase = """{"Codigo":"USD"}""";
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        // When
+        var deserialized = JsonSerializer.Deserialize<Moneda>(jsonPascalCase, options);
+
+        // Then — con [JsonConstructor] en Moneda + case-insensitive, se reconstruye OK.
+        deserialized.Codigo.Should().Be("USD");
+    }
+
+    [Fact]
+    public void Dinero_round_trip_STJ_preserva_Valor_y_Moneda()
+    {
+        // Given
+        var original = new Dinero(1_500_000m, Moneda.COP);
+
+        // When
+        var json = JsonSerializer.Serialize(original);
+        var deserialized = JsonSerializer.Deserialize<Dinero>(json);
+
+        // Then
+        deserialized.Valor.Should().Be(1_500_000m);
+        deserialized.Moneda.Codigo.Should().Be("COP");
     }
 }

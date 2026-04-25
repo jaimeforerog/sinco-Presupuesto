@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SincoPresupuesto.Domain.SharedKernel;
 
 /// <summary>
@@ -49,6 +51,15 @@ public readonly record struct Moneda
     /// </summary>
     public static int CantidadCodigosIso4217Soportados => CodigosIso4217Validos.Count;
 
+    /// <summary>
+    /// Constructor seleccionado por System.Text.Json para deserialización.
+    /// Sin <see cref="JsonConstructorAttribute"/>, STJ usa el constructor default
+    /// implícito del struct (yielding <c>Codigo = null</c>) porque la propiedad
+    /// es get-only y no puede setearse post-construcción. Followup #23: bug
+    /// descubierto por el visor de eventos (spec <c>slices/_obs-visor-eventos</c>).
+    /// El parámetro matchea case-insensitive contra "Codigo"/"codigo" en el JSON.
+    /// </summary>
+    [JsonConstructor]
     public Moneda(string codigo)
     {
         if (string.IsNullOrWhiteSpace(codigo))
